@@ -16,11 +16,11 @@ cnyes_url = 'https://news.cnyes.com/news/cat/headline'
 cnyes_base = 'https://news.cnyes.com'
 
 # 經濟日報 搜尋 URL
-udn_url = 'https://money.udn.com/money/cate/5591'
+udn_url = 'https://money.udn.com/rank/newest/1001/5591/1'
 udn_base = 'https://money.udn.com'
 
-keywords = ['鴻海', '劉揚偉', '郭台銘', '富士康', '富智康', '鴻華先進', 'MIH', 'Fii', '工業富聯', '夏普', '鴻準', '臻鼎', '樺漢', '鴻家軍']
-#keywords = ['外資', '彭博', '疫情', '美股', '通膨', '比特幣', '鴻海', '疫苗']
+#keywords = ['鴻海', '劉揚偉', '郭台銘', '富士康', '富智康', '鴻華先進', 'MIH', 'Fii', '工業富聯', '夏普', '鴻準', '臻鼎', '樺漢', '鴻家軍']
+keywords = ['外資', '彭博', '疫情', '美股', '通膨', '比特幣', '鴻海', '疫苗']
 
 # First use current time to scrap news
 checktime = datetime.now()
@@ -49,11 +49,12 @@ def cnyes_scraping_news():
 		news = []
 
 		for i in items:
+			# 標題
+			#print("標題：" + i.text)
+			# 網址
+			#print("網址：" + cnyes_base+i.get('href'))
 			for k in range(len(keywords)):
-				# 標題
-				#print("標題：" + i.text)
-				# 網址
-				#print("網址：" + cnyes_base+i.get('href'))
+
 				pos = i.text.find(keywords[k])
 				if pos >= 0:
 					# 標題
@@ -70,26 +71,23 @@ def cnyes_scraping_news():
 							lasttime = newstime
 
 						# Notify line message
-						news = [i.time.get('datetime'), i.get('title'), cnyes_base+i.get('href')]
+						news = [i.time.get('datetime'), "\n" + i.get('title') + "\n" + cnyes_base+i.get('href')]
 						print(news)
 						params = {"message": news}
 						r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=params)
 						print(r.status_code)
 					break
 
-	#FIXME
-	if checktime != lasttime:
-		checktime = lasttime
-		#checktime += timedelta(hours = 1)
-		print("find news in 鉅亨網! update checktime to: " + str(checktime))
-
-#FIXME
 def udn_scraping_news():
 	#Declare global variable
 	global checktime, lasttime
 
+	# Create fake user agent
+	#user_info = {'user-agent': 'Mozilla/5.0 (Macintosh Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'}
+	user_info = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36'}
+
 	# Download search data
-	r = requests.get(udn_url)
+	r = requests.get(udn_url, headers=user_info)
 
 	# Check download data success
 	if r.status_code == requests.codes.ok:
@@ -98,27 +96,31 @@ def udn_scraping_news():
 
 		# HTML source code
 		#print(soup.prettify)
-  
+
 		# Analysis necessary data
-		items = soup.find_all("dt", {"class": "more_5612"})
+		items = soup.find_all("tr", {"style": "table-row"})
 		#print(items)
 
 		news = []
 
 		for i in items:
-			for k in range(len(keywords)):
-				# 標題
-				#print("標題：" + i.text)
-				# 網址
-				#print("網址：" + udn_base+i.get('href'))
+			# 時間
+			#print("TIME：" + i.find("td", {"align": "right"}).text)
+			# 標題
+			#print("標題：" + i.find('a').text)
+			# 網址
+			#print("網址：" + i.find('a')['href'])
+			for k in range(len(keywords)):		
 				pos = i.text.find(keywords[k])
 				if pos >= 0:
+					# 時間
+					#print("TIME：" + i.find("td", {"align": "right"}).text)
 					# 標題
-					#print("標題：" + i.text)
+					#print("標題：" + i.find('a').text)
 					# 網址
-					#print("網址：" + udn_base+i.get('href'))
+					#print("網址：" + i.find('a')['href'])
 
-					newstime = datetime.strptime(i.time.get('datetime'), "%Y-%m-%dT%H:%M:%S+08:00")
+					newstime = datetime.strptime(str(checktime.year) + "/" + i.find("td", {"align": "right"}).text, "%Y/%m/%d %H:%M")
 					print(str(newstime))
 					if newstime > checktime:
 						print("find news!")
@@ -127,21 +129,24 @@ def udn_scraping_news():
 							lasttime = newstime
 
 						# Notify line message
-						news = [i.time.get('datetime'), i.get('title'), udn_base+i.get('href')]
+						news = [newstime, "\n" + i.find('a').text + "\n" + i.find('a')['href']]
 						print(news)
 						params = {"message": news}
 						r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=params)
 						print(r.status_code)
 					break
 
+while True:
+	cnyes_scraping_news()
+	udn_scraping_news()
+
+	print("checktime: " + str(checktime))
+	print("lasttime: " + str(lasttime))
+
 	if checktime != lasttime:
 		checktime = lasttime
 		#checktime += timedelta(hours = 1)
-		print("find news! update checktime to: " + str(checktime))
-
-while True:
-	cnyes_scraping_news()
-	print("----------Next run----------")
+		print("Next run: Update checktime to: " + str(checktime))
 	print(" ")
 	print(" ")
 	time.sleep(300)
