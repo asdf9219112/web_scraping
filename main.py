@@ -31,7 +31,7 @@ keywords = ['鴻海', '劉揚偉', '郭台銘', '富士康', '富智康', '鴻華先進', 'MIH', '
 #keywords = ['外資', '彭博', '疫情', '美股', '通膨', '比特幣', '鴻海', '疫苗']
 
 # First use current time to scrap news
-checktime = datetime.now()
+checktime = datetime.now() - timedelta(hours = 0)
 lasttime = checktime
 print("Now the date time is " + str(checktime.strftime("%Y-%m-%d %H:%M:%S")) + ", start to scraping news!")
 
@@ -106,18 +106,20 @@ def udn_scraping_news():
 		#print(soup.prettify)
 
 		# Analysis necessary data
-		items = soup.find_all("tr", {"style": "table-row"})
+		#items = soup.find_all("tr", {"style": "table-row"})
+		items = soup.find_all("li", {"class": "story-headline-wrapper"})
 		#print(items)
 
 		news = []
 
 		for i in items:
 			# 時間
-			#print("TIME：" + i.find("td", {"align": "right"}).text)
+			#print("TIME：" + i.time.text)
 			# 標題
-			#print("標題：" + i.find('a').text)
+			#print("標題：" + i.find('h3').text.strip())
 			# 網址
 			#print("網址：" + i.find('a')['href'])
+
 			for k in range(len(keywords)):
 				pos = i.text.find(keywords[k])
 				if pos >= 0:
@@ -128,8 +130,8 @@ def udn_scraping_news():
 					# 網址
 					#print("網址：" + i.find('a')['href'])
 
-					newstime = datetime.strptime(str(checktime.year) + "/" + i.find("td", {"align": "right"}).text, "%Y/%m/%d %H:%M")
-					#print(str(newstime))
+					newstime = datetime.strptime(str(checktime.year) + "/" + i.time.text, "%Y/%m/%d %H:%M")
+					print(str(newstime))
 					if newstime > checktime:
 						print("find news!")
 						# Update last news time
@@ -137,7 +139,7 @@ def udn_scraping_news():
 							lasttime = newstime
 
 						# Notify line message
-						news = [newstime, "\n" + i.find('a').text + "\n" + i.find('a')['href']]
+						news = [str(checktime.year) + "/" + i.time.text, "\n" + i.find('h3').text.strip() + "\n" + i.find('a')['href']]
 						print(news)
 						params = {"message": news}
 						r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=params)
@@ -164,33 +166,38 @@ def yahoo_scraping_news():
 		#print(soup.prettify)
 
 		# Analysis necessary data
-		items = soup.find_all("td", {"valign": "bottom"})
+		items = soup.find_all("div", {"class": "Cf"})
 		#print(items)
 
 		news = []
-
 		num = 1
 
 		for i in items:
 			# 標題
 			#print("標題：" + i.find('a').text)
 			# 網址
-			#print("網址：" + yahoo_base+i.find('a')['href'])
+			#print("網址：" + i.find('a')['href'])
 
 			for k in range(len(keywords)):		
 				pos = i.text.find(keywords[k])
 				if pos >= 0:
 					# Get sub url time information
-					sub_r = requests.get(yahoo_base+i.find('a')['href'], headers=user_info)
+					sub_r = requests.get(i.find('a')['href'], headers=user_info)
+					if sub_r.status_code != requests.codes.ok:
+						print("Empty news! status=" + str(sub_r.status_code))
+						print(sub_r.status_code)
+						break
+
 					sub_soup = BeautifulSoup(sub_r.text, 'html.parser')
 					sub_items = sub_soup.find("time")
+
 
 					# 時間
 					#print("TIME：" + sub_items.text)
 					# 標題
 					#print("標題：" + i.find('a').text)
 					# 網址
-					#print("網址：" + yahoo_base+i.find('a')['href'])
+					#print("網址：" + i.find('a')['href'])
 
 					newstime = datetime.strptime(sub_items.get('datetime'), "%Y-%m-%dT%H:%M:%S.%fZ") + timedelta(hours = tz)
 					#print(str(newstime))
@@ -201,7 +208,7 @@ def yahoo_scraping_news():
 							lasttime = newstime
 
 						# Notify line message
-						news = [sub_items.text, "\n" + i.find('a').text + "\n" + yahoo_base+i.find('a')['href']]
+						news = [sub_items.text, "\n" + i.find('a').text + "\n" + i.find('a')['href']]
 						print(news)
 						params = {"message": news}
 						r = requests.post("https://notify-api.line.me/api/notify", headers=headers, params=params)
@@ -220,6 +227,8 @@ while True:
 		checktime = lasttime
 		#checktime += timedelta(hours = 1)
 		print("Next run: Update checktime to: " + str(checktime))
+
+	print("Datetime: " + str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 	print(" ")
 	print(" ")
-	time.sleep(600)
+	time.sleep(1800)
